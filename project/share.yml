@@ -1,0 +1,71 @@
+---
+- name: partion fs and mount the folder
+  hosts: partition
+  become: true
+  tasks:
+       - name: partion in servera and b
+         parted:
+              device: /dev/vdb
+              number: 1
+              state: present
+              label: gpt
+
+       - name: filesystem for mounting
+         filesystem:
+              fstype: ext4
+              dev: /dev/vdb1
+
+       - name: create samba user
+         user:
+              name: smbuser
+              state: present      
+        
+       - name: create a folder
+         file:
+              path: /sharefolder
+              state: directory 
+              mode: 0755
+              owner: smbuser
+        
+       - name: mounting to the folder
+         mount:
+              path: /sharefolder
+              src: /dev/vdb1
+              fstype: ext4
+              state: mounted
+
+       - name: install samba
+         yum:
+              name: samba
+              state: latest
+
+       - name: configure samba share
+         lineinfile:
+              path: /etc/samba/smb.conf 
+              line: "{{ item }}"       
+              insertafter: EOF
+         with_items:
+              - "[sharefolder]"
+              - "path=/sharefolder"
+              - "browsable=yes"
+              - "writable=yes"
+              - "guest ok=yes"
+              - "read only=no"
+
+       - name: set samba passwd
+         expect:
+              command: "smbpasswd -a smbuser"
+              responses:
+                      "(New SMB password)": "asd\n"
+                      "(Retype new SMB password)": "asd\n"
+
+       - name: conf firewall by adding samba service
+         firewalld:
+              service: samba
+              permanent: true
+              state: enabled
+      
+       - name: restart firewall
+         service:
+              name: firewalld
+              state: restarted       

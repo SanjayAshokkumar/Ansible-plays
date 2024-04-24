@@ -1,0 +1,16 @@
+---
+   - name: "installing apache and configured its port in 9999"
+     hosts: all
+     become: true
+     tasks:
+       - name: install httpd
+         yum:
+           name: httpd
+           state: present
+       - name: copy index file
+         copy:
+           src: /home/student/project/index.html
+           dest: /var/www/html/index.html
+       
+        
+                 
